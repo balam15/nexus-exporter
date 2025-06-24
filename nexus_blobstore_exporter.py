@@ -72,7 +72,12 @@ def fetch_repositories():
 
             url_assets = f"{NEXUS_URL}/service/rest/v1/search/assets"
             try:
-                resp_assets = requests.get(url_assets, auth=(NEXUS_USER, NEXUS_PASS), params=params, timeout=20)
+                resp_assets = requests.get(
+                    url_assets,
+                    auth=(NEXUS_USER, NEXUS_PASS),
+                    params=params,
+                    timeout=20
+                )
                 resp_assets.raise_for_status()
                 assets_data = resp_assets.json()
             except Exception as e:
@@ -84,12 +89,15 @@ def fetch_repositories():
             now = datetime.now(timezone.utc)
 
             for asset in items:
-                size_total += asset.get("fileSize", 0)
+                size_total += int(asset.get("fileSize", 0))
 
                 last_dl_str = asset.get("lastDownloaded")
                 if last_dl_str:
                     try:
-                        last_dl_time = datetime.fromisoformat(last_dl_str.rstrip('Z')).replace(tzinfo=timezone.utc)
+                        # Pastikan timezone-aware
+                        last_dl_time = datetime.fromisoformat(
+                            last_dl_str.rstrip('Z')
+                        ).replace(tzinfo=timezone.utc)
                         age_days = (now - last_dl_time).total_seconds() / 86400
                         last_download_ages.append(age_days)
                     except Exception:
@@ -97,11 +105,12 @@ def fetch_repositories():
 
             continuation_token = assets_data.get("continuationToken")
             page += 1
-
             if not continuation_token:
                 break
 
-        print(f"  📏 Total size for {repo_name}: {size_total / (1024**3):.2f} GB")
+        size_gb = size_total / (1024 ** 3)
+        print(f"  📏 Total size for {repo_name}: {size_total} bytes ({size_gb:.2f} GB)")
+
         repo_size.labels(repo_name).set(size_total)
 
         if last_download_ages:
@@ -116,7 +125,7 @@ def main():
     while True:
         fetch_blobstores()
         fetch_repositories()
-        time.sleep(30)
+        time.sleep(300)  # every 5 minutes
 
 if __name__ == "__main__":
     main()
