@@ -44,7 +44,6 @@ def fetch_blobstores():
         print(f"❌ Error fetching blobstores: {e}")
 
 def fetch_repositories():
-    # Kita akan kumpulkan size dan last download per repository dari /search/assets
     url = f"{NEXUS_URL}/service/rest/v1/repositories"
     try:
         resp = requests.get(url, auth=(NEXUS_USER, NEXUS_PASS), timeout=10)
@@ -59,16 +58,16 @@ def fetch_repositories():
         if not repo_name:
             continue
 
-        # Paging untuk assets dalam repo ini
         size_total = 0
         last_download_ages = []
         continuation_token = None
 
         while True:
-            params = {}
+            params = {"repository": repo_name}
             if continuation_token:
                 params["continuationToken"] = continuation_token
-            url_assets = f"{NEXUS_URL}/service/rest/v1/search/assets?repository={repo_name}"
+
+            url_assets = f"{NEXUS_URL}/service/rest/v1/search/assets"
             try:
                 resp_assets = requests.get(url_assets, auth=(NEXUS_USER, NEXUS_PASS), params=params, timeout=10)
                 resp_assets.raise_for_status()
@@ -88,9 +87,8 @@ def fetch_repositories():
                         last_dl_time = datetime.fromisoformat(last_dl_str.rstrip('Z')).replace(tzinfo=timezone.utc)
                         age_days = (now - last_dl_time).total_seconds() / 86400
                         last_download_ages.append(age_days)
-                    except Exception as e:
-                        # skip parsing error
-                        pass
+                    except Exception:
+                        continue
 
             continuation_token = assets_data.get("continuationToken")
             if not continuation_token:
