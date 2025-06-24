@@ -6,21 +6,19 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"time"
 	"strconv"
+	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
-// Define Prometheus metrics
 var (
-	nexusRepoCount = prometheus.NewGaugeVec(
+	nexusRepoCount = prometheus.NewGauge(
 		prometheus.GaugeOpts{
 			Name: "nexus_repositories_count",
-			Help: "Number of repositories in Nexus",
+			Help: "Total number of repositories in Nexus",
 		},
-		[]string{"name"},
 	)
 
 	nexusRepoSize = prometheus.NewGaugeVec(
@@ -39,12 +37,11 @@ var (
 		[]string{"name"},
 	)
 
-	nexusBlobstoreCount = prometheus.NewGaugeVec(
+	nexusBlobstoreCount = prometheus.NewGauge(
 		prometheus.GaugeOpts{
 			Name: "nexus_blobstores_count",
-			Help: "Number of blobstores",
+			Help: "Total number of blobstores",
 		},
-		[]string{"name"},
 	)
 
 	nexusBlobstoreSize = prometheus.NewGaugeVec(
@@ -106,11 +103,7 @@ func fetchMetrics() {
 		log.Println("Failed to fetch repositories:", err)
 		return
 	}
-
-	for _, repo := range repos {
-		name := repo["name"].(string)
-		nexusRepoCount.WithLabelValues(name).Set(1)
-	}
+	nexusRepoCount.Set(float64(len(repos)))
 
 	// === Blobstores ===
 	blobstores := []map[string]interface{}{}
@@ -118,18 +111,15 @@ func fetchMetrics() {
 		log.Println("Failed to fetch blobstores:", err)
 		return
 	}
-
+	nexusBlobstoreCount.Set(float64(len(blobstores)))
 	for _, bs := range blobstores {
 		name := bs["name"].(string)
-
 		totalSize := getFloat(bs["totalSize"])
 		usedSpace := getFloat(bs["usedSpace"])
 		usagePercent := 0.0
 		if totalSize > 0 {
 			usagePercent = (usedSpace / totalSize) * 100
 		}
-
-		nexusBlobstoreCount.WithLabelValues(name).Set(1)
 		nexusBlobstoreSize.WithLabelValues(name).Set(totalSize)
 		nexusBlobstoreUsage.WithLabelValues(name).Set(usagePercent)
 	}
@@ -176,13 +166,11 @@ func fetchMetrics() {
 func fetchJSON(client *http.Client, url, user, pass string, target interface{}) error {
 	req, _ := http.NewRequest("GET", url, nil)
 	req.SetBasicAuth(user, pass)
-
 	resp, err := client.Do(req)
 	if err != nil {
 		return err
 	}
 	defer resp.Body.Close()
-
 	return json.NewDecoder(resp.Body).Decode(target)
 }
 
@@ -198,7 +186,6 @@ func fetchAllAssets(client *http.Client, baseURL, user, pass string) ([]map[stri
 
 		req, _ := http.NewRequest("GET", url, nil)
 		req.SetBasicAuth(user, pass)
-
 		resp, err := client.Do(req)
 		if err != nil {
 			return nil, err
@@ -224,15 +211,12 @@ func fetchAllAssets(client *http.Client, baseURL, user, pass string) ([]map[stri
 }
 
 func getFloat(val interface{}) float64 {
-	if val == nil {
-		return 0
-	}
 	switch v := val.(type) {
 	case float64:
 		return v
-	case int64:
-		return float64(v)
 	case int:
+		return float64(v)
+	case int64:
 		return float64(v)
 	case string:
 		f, _ := strconv.ParseFloat(v, 64)
