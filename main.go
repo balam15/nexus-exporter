@@ -52,6 +52,14 @@ var (
 		[]string{"name"},
 	)
 
+	nexusBlobstoreUsed = prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Name: "nexus_blobstores_used_space_bytes",
+			Help: "Used space of blobstore in bytes",
+		},
+		[]string{"name"},
+	)
+
 	nexusBlobstoreUsage = prometheus.NewGaugeVec(
 		prometheus.GaugeOpts{
 			Name: "nexus_blobstores_usage_percent",
@@ -68,6 +76,7 @@ func init() {
 		nexusRepoLastDownloadAge,
 		nexusBlobstoreCount,
 		nexusBlobstoreSize,
+		nexusBlobstoreUsed,
 		nexusBlobstoreUsage,
 	)
 }
@@ -121,6 +130,7 @@ func fetchMetrics() {
 			usagePercent = (usedSpace / totalSize) * 100
 		}
 		nexusBlobstoreSize.WithLabelValues(name).Set(totalSize)
+		nexusBlobstoreUsed.WithLabelValues(name).Set(usedSpace)
 		nexusBlobstoreUsage.WithLabelValues(name).Set(usagePercent)
 	}
 
