@@ -1,142 +1,242 @@
 package main
 
 import (
-    "encoding/json"
-    "fmt"
-    "log"
-    "net/http"
-    "os"
-    "strconv"
-    "time"
+	"encoding/json"
+	"fmt"
+	"log"
+	"net/http"
+	"os"
+	"time"
 
-    "github.com/prometheus/client_golang/prometheus"
-    "github.com/prometheus/client_golang/prometheus/promhttp"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
+// Define Prometheus metrics
 var (
-    nexusRepoCount = prometheus.NewGaugeVec(
-        prometheus.GaugeOpts{
-            Name: "nexus_repositories_count",
-            Help: "Number of repositories in Nexus",
-        },
-        []string{"name"},
-    )
+	nexusRepoCount = prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Name: "nexus_repositories_count",
+			Help: "Number of repositories in Nexus",
+		},
+		[]string{"name"},
+	)
 
-    nexusRepoSize = prometheus.NewGaugeVec(
-        prometheus.GaugeOpts{
-            Name: "nexus_repositories_size_bytes",
-            Help: "Size of the repository in bytes",
-        },
-        []string{"name"},
-    )
+	nexusRepoSize = prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Name: "nexus_repositories_size_bytes",
+			Help: "Size of the repository in bytes",
+		},
+		[]string{"name"},
+	)
 
-    nexusRepoLastDownloadAge = prometheus.NewGaugeVec(
-        prometheus.GaugeOpts{
-            Name: "nexus_repositories_last_download_age_day",
-            Help: "Age in days since the last download",
-        },
-        []string{"name"},
-    )
+	nexusRepoLastDownloadAge = prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Name: "nexus_repositories_last_download_age_day",
+			Help: "Age in days since the last download",
+		},
+		[]string{"name"},
+	)
 
-    nexusBlobstoreCount = prometheus.NewGaugeVec(
-        prometheus.GaugeOpts{
-            Name: "nexus_blobstores_count",
-            Help: "Number of blobstores",
-        },
-        []string{"name"},
-    )
+	nexusBlobstoreCount = prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Name: "nexus_blobstores_count",
+			Help: "Number of blobstores",
+		},
+		[]string{"name"},
+	)
 
-    nexusBlobstoreSize = prometheus.NewGaugeVec(
-        prometheus.GaugeOpts{
-            Name: "nexus_blobstores_size_bytes",
-            Help: "Size of blobstore in bytes",
-        },
-        []string{"name"},
-    )
+	nexusBlobstoreSize = prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Name: "nexus_blobstores_size_bytes",
+			Help: "Size of blobstore in bytes",
+		},
+		[]string{"name"},
+	)
 
-    nexusBlobstoreUsage = prometheus.NewGaugeVec(
-        prometheus.GaugeOpts{
-            Name: "nexus_blobstores_usage_percent",
-            Help: "Usage of blobstore in percent",
-        },
-        []string{"name"},
-    )
+	nexusBlobstoreUsage = prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Name: "nexus_blobstores_usage_percent",
+			Help: "Usage of blobstore in percent",
+		},
+		[]string{"name"},
+	)
 )
 
 func init() {
-    prometheus.MustRegister(nexusRepoCount, nexusRepoSize, nexusRepoLastDownloadAge, nexusBlobstoreCount, nexusBlobstoreSize, nexusBlobstoreUsage)
-}
-
-func fetchMetrics() {
-    // Ganti sesuai config
-    baseURL := os.Getenv("NEXUS_URL")
-    username := os.Getenv("NEXUS_USER")
-    password := os.Getenv("NEXUS_PASS")
-
-    client := &http.Client{Timeout: 10 * time.Second}
-    req, err := http.NewRequest("GET", baseURL+"/service/rest/v1/repositories", nil)
-    if err != nil {
-        log.Println("Failed to create request:", err)
-        return
-    }
-    req.SetBasicAuth(username, password)
-
-    resp, err := client.Do(req)
-    if err != nil {
-        log.Println("Request error:", err)
-        return
-    }
-    defer resp.Body.Close()
-
-    var repositories []map[string]interface{}
-    if err := json.NewDecoder(resp.Body).Decode(&repositories); err != nil {
-        log.Println("Decode error:", err)
-        return
-    }
-
-    for _, repo := range repositories {
-        name := repo["name"].(string)
-
-        // Dummy data. Ganti sesuai endpoint dan parsing sebenarnya.
-        nexusRepoCount.WithLabelValues(name).Set(1)
-        nexusRepoSize.WithLabelValues(name).Set(12345678)                          // ganti sesuai data sebenarnya
-        nexusRepoLastDownloadAge.WithLabelValues(name).Set(3)                     // dummy: 3 hari
-    }
-
-    // Blobstore: Ganti dengan endpoint blobstore Nexus Anda
-    req2, _ := http.NewRequest("GET", baseURL+"/service/rest/v1/blobstores", nil)
-    req2.SetBasicAuth(username, password)
-    resp2, err := client.Do(req2)
-    if err != nil {
-        log.Println("Blobstore request error:", err)
-        return
-    }
-    defer resp2.Body.Close()
-
-    var blobstores []map[string]interface{}
-    if err := json.NewDecoder(resp2.Body).Decode(&blobstores); err != nil {
-        log.Println("Blobstore decode error:", err)
-        return
-    }
-
-    for _, bs := range blobstores {
-        name := bs["name"].(string)
-        // Dummy data. Ganti parsing sesuai struktur JSON nyata
-        nexusBlobstoreCount.WithLabelValues(name).Set(1)
-        nexusBlobstoreSize.WithLabelValues(name).Set(987654321)
-        nexusBlobstoreUsage.WithLabelValues(name).Set(75.5)
-    }
+	prometheus.MustRegister(
+		nexusRepoCount,
+		nexusRepoSize,
+		nexusRepoLastDownloadAge,
+		nexusBlobstoreCount,
+		nexusBlobstoreSize,
+		nexusBlobstoreUsage,
+	)
 }
 
 func main() {
-    go func() {
-        for {
-            fetchMetrics()
-            time.Sleep(30 * time.Second)
-        }
-    }()
+	go func() {
+		for {
+			fetchMetrics()
+			time.Sleep(30 * time.Second)
+		}
+	}()
 
-    http.Handle("/metrics", promhttp.Handler())
-    fmt.Println("Exporter running at :9103/metrics")
-    log.Fatal(http.ListenAndServe(":9103", nil))
+	http.Handle("/metrics", promhttp.Handler())
+	fmt.Println("✅ Nexus exporter running on :9103/metrics")
+	log.Fatal(http.ListenAndServe(":9103", nil))
+}
+
+func fetchMetrics() {
+	baseURL := os.Getenv("NEXUS_URL")
+	username := os.Getenv("NEXUS_USER")
+	password := os.Getenv("NEXUS_PASS")
+
+	if baseURL == "" || username == "" || password == "" {
+		log.Println("❌ NEXUS_URL, NEXUS_USER, and NEXUS_PASS must be set")
+		return
+	}
+
+	client := &http.Client{Timeout: 15 * time.Second}
+
+	// === Repositories ===
+	repos := []map[string]interface{}{}
+	if err := fetchJSON(client, baseURL+"/service/rest/v1/repositories", username, password, &repos); err != nil {
+		log.Println("Failed to fetch repositories:", err)
+		return
+	}
+
+	for _, repo := range repos {
+		name := repo["name"].(string)
+		nexusRepoCount.WithLabelValues(name).Set(1)
+	}
+
+	// === Blobstores ===
+	blobstores := []map[string]interface{}{}
+	if err := fetchJSON(client, baseURL+"/service/rest/v1/blobstores", username, password, &blobstores); err != nil {
+		log.Println("Failed to fetch blobstores:", err)
+		return
+	}
+
+	for _, bs := range blobstores {
+		name := bs["name"].(string)
+
+		totalSize := getFloat(bs["totalSize"])
+		usedSpace := getFloat(bs["usedSpace"])
+		usagePercent := 0.0
+		if totalSize > 0 {
+			usagePercent = (usedSpace / totalSize) * 100
+		}
+
+		nexusBlobstoreCount.WithLabelValues(name).Set(1)
+		nexusBlobstoreSize.WithLabelValues(name).Set(totalSize)
+		nexusBlobstoreUsage.WithLabelValues(name).Set(usagePercent)
+	}
+
+	// === Assets ===
+	assets, err := fetchAllAssets(client, baseURL, username, password)
+	if err != nil {
+		log.Println("Failed to fetch assets:", err)
+		return
+	}
+
+	repoSize := make(map[string]float64)
+	repoAge := make(map[string]float64)
+	repoAgeCount := make(map[string]int)
+	now := time.Now()
+
+	for _, asset := range assets {
+		repo := asset["repository"].(string)
+
+		if sz, ok := asset["size"].(float64); ok {
+			repoSize[repo] += sz
+		}
+
+		if lastDLStr, ok := asset["lastDownloaded"].(string); ok {
+			if lastDL, err := time.Parse(time.RFC3339, lastDLStr); err == nil {
+				ageDays := now.Sub(lastDL).Hours() / 24
+				repoAge[repo] += ageDays
+				repoAgeCount[repo]++
+			}
+		}
+	}
+
+	for repo, size := range repoSize {
+		nexusRepoSize.WithLabelValues(repo).Set(size)
+	}
+
+	for repo, ageTotal := range repoAge {
+		if count := repoAgeCount[repo]; count > 0 {
+			nexusRepoLastDownloadAge.WithLabelValues(repo).Set(ageTotal / float64(count))
+		}
+	}
+}
+
+func fetchJSON(client *http.Client, url, user, pass string, target interface{}) error {
+	req, _ := http.NewRequest("GET", url, nil)
+	req.SetBasicAuth(user, pass)
+
+	resp, err := client.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	return json.NewDecoder(resp.Body).Decode(target)
+}
+
+func fetchAllAssets(client *http.Client, baseURL, user, pass string) ([]map[string]interface{}, error) {
+	var assets []map[string]interface{}
+	token := ""
+
+	for {
+		url := baseURL + "/service/rest/v1/search/assets"
+		if token != "" {
+			url += "?continuationToken=" + token
+		}
+
+		req, _ := http.NewRequest("GET", url, nil)
+		req.SetBasicAuth(user, pass)
+
+		resp, err := client.Do(req)
+		if err != nil {
+			return nil, err
+		}
+		defer resp.Body.Close()
+
+		var result map[string]interface{}
+		if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+			return nil, err
+		}
+
+		for _, item := range result["items"].([]interface{}) {
+			assets = append(assets, item.(map[string]interface{}))
+		}
+
+		if next, ok := result["continuationToken"].(string); ok && next != "" {
+			token = next
+		} else {
+			break
+		}
+	}
+	return assets, nil
+}
+
+func getFloat(val interface{}) float64 {
+	if val == nil {
+		return 0
+	}
+	switch v := val.(type) {
+	case float64:
+		return v
+	case int64:
+		return float64(v)
+	case int:
+		return float64(v)
+	case string:
+		f, _ := strconv.ParseFloat(v, 64)
+		return f
+	default:
+		return 0
+	}
 }
