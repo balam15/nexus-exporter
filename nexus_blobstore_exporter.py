@@ -58,9 +58,12 @@ def fetch_repositories():
         if not repo_name:
             continue
 
+        print(f"📦 Processing repository: {repo_name}")
+
         size_total = 0
         last_download_ages = []
         continuation_token = None
+        page = 1
 
         while True:
             params = {"repository": repo_name}
@@ -69,15 +72,17 @@ def fetch_repositories():
 
             url_assets = f"{NEXUS_URL}/service/rest/v1/search/assets"
             try:
-                resp_assets = requests.get(url_assets, auth=(NEXUS_USER, NEXUS_PASS), params=params, timeout=10)
+                resp_assets = requests.get(url_assets, auth=(NEXUS_USER, NEXUS_PASS), params=params, timeout=20)
                 resp_assets.raise_for_status()
                 assets_data = resp_assets.json()
             except Exception as e:
-                print(f"❌ Error fetching assets for repo {repo_name}: {e}")
+                print(f"❌ Error fetching assets for {repo_name}: {e}")
                 break
 
             items = assets_data.get("items", [])
+            print(f"  🔄 Page {page}: {len(items)} items")
             now = datetime.now(timezone.utc)
+
             for asset in items:
                 size_total += asset.get("fileSize", 0)
 
@@ -91,10 +96,14 @@ def fetch_repositories():
                         continue
 
             continuation_token = assets_data.get("continuationToken")
+            page += 1
+
             if not continuation_token:
                 break
 
+        print(f"  📏 Total size for {repo_name}: {size_total / (1024**3):.2f} GB")
         repo_size.labels(repo_name).set(size_total)
+
         if last_download_ages:
             avg_age = sum(last_download_ages) / len(last_download_ages)
             repo_last_download_age.labels(repo_name).set(avg_age)
