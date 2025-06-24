@@ -132,25 +132,19 @@ func fetchMetrics() {
 	nexusBlobstoreCount.Set(float64(len(blobstores)))
 	for _, bs := range blobstores {
 		name := bs["name"].(string)
+		totalSize := getFloat(bs["totalSizeInBytes"])
+		available := getFloat(bs["availableSpaceInBytes"])
+		fileCount := getFloat(bs["blobCount"])
 
-		// Fetch blobstore capacity details
-		capacityURL := fmt.Sprintf("%s/service/rest/v1/blobstores/%s/capacity", baseURL, name)
-		capacity := map[string]interface{}{}
-		if err := fetchJSON(client, capacityURL, username, password, &capacity); err != nil {
-			log.Printf("⚠️ Failed to fetch capacity for blobstore '%s': %v", name, err)
-			continue
-		}
-
-		totalSize := getFloat(capacity["totalSpace"])
-		usedSpace := getFloat(capacity["usedSpace"])
-		fileCount := getFloat(capacity["itemCount"])
+		usedSpace := totalSize
+		fullSize := totalSize + available
 
 		usagePercent := 0.0
-		if totalSize > 0 {
-			usagePercent = (usedSpace / totalSize) * 100
+		if fullSize > 0 {
+			usagePercent = (usedSpace / fullSize) * 100
 		}
 
-		nexusBlobstoreSize.WithLabelValues(name).Set(totalSize)
+		nexusBlobstoreSize.WithLabelValues(name).Set(fullSize)
 		nexusBlobstoreUsed.WithLabelValues(name).Set(usedSpace)
 		nexusBlobstoreUsage.WithLabelValues(name).Set(usagePercent)
 		nexusBlobstoreFileCount.WithLabelValues(name).Set(fileCount)
