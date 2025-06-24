@@ -1,4 +1,5 @@
-package main
+" +
+"package main
 
 import (
 	"encoding/json"
@@ -67,6 +68,14 @@ var (
 		},
 		[]string{"name"},
 	)
+
+	nexusBlobstoreFileCount = prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Name: "nexus_blobstores_file_count",
+			Help: "Number of files stored in each blobstore",
+		},
+		[]string{"name"},
+	)
 )
 
 func init() {
@@ -78,6 +87,7 @@ func init() {
 		nexusBlobstoreSize,
 		nexusBlobstoreUsed,
 		nexusBlobstoreUsage,
+		nexusBlobstoreFileCount,
 	)
 }
 
@@ -123,15 +133,28 @@ func fetchMetrics() {
 	nexusBlobstoreCount.Set(float64(len(blobstores)))
 	for _, bs := range blobstores {
 		name := bs["name"].(string)
-		totalSize := getFloat(bs["totalSize"])
-		usedSpace := getFloat(bs["usedSpace"])
+
+		// Fetch blobstore capacity details
+		capacityURL := fmt.Sprintf("%s/service/rest/v1/blobstores/%s/capacity", baseURL, name)
+		capacity := map[string]interface{}{}
+		if err := fetchJSON(client, capacityURL, username, password, &capacity); err != nil {
+			log.Printf("⚠️ Failed to fetch capacity for blobstore '%s': %v", name, err)
+			continue
+		}
+
+		totalSize := getFloat(capacity["totalSpace"])
+		usedSpace := getFloat(capacity["usedSpace"])
+		fileCount := getFloat(capacity["itemCount"])
+
 		usagePercent := 0.0
 		if totalSize > 0 {
 			usagePercent = (usedSpace / totalSize) * 100
 		}
+
 		nexusBlobstoreSize.WithLabelValues(name).Set(totalSize)
 		nexusBlobstoreUsed.WithLabelValues(name).Set(usedSpace)
 		nexusBlobstoreUsage.WithLabelValues(name).Set(usagePercent)
+		nexusBlobstoreFileCount.WithLabelValues(name).Set(fileCount)
 	}
 
 	// === Assets ===
