@@ -19,6 +19,9 @@ blobstore_files = Gauge("nexus_blobstores_file_count", "Number of files (blobs) 
 repo_size = Gauge("nexus_repositories_size_bytes", "Total size of repository in bytes", ["name"])
 repo_last_download_age = Gauge("nexus_repositories_last_download_age_day", "Average age in days since last download", ["name"])
 
+# Status check metrics
+status_healthy = Gauge("nexus_status_check_healthy", "Nexus system component health status (1 = healthy)", ["component"])
+
 def fetch_blobstores():
     url = f"{NEXUS_URL}/service/rest/v1/blobstores"
     try:
@@ -43,12 +46,27 @@ def fetch_blobstores():
     except Exception as e:
         print(f"❌ Error fetching blobstores: {e}")
 
+def fetch_status_check():
+    url = f"{NEXUS_URL}/service/rest/v1/status/check"
+    try:
+        resp = requests.get(url, auth=(NEXUS_USER, NEXUS_PASS), timeout=10)
+        resp.raise_for_status()
+        data = resp.json()
+
+        for component, status in data.items():
+            healthy = 1 if status.get("healthy") else 0
+            status_healthy.labels(component=component).set(healthy)
+
+    except Exception as e:
+        print(f"❌ Error fetching status check: {e}")
+
 def main():
     print("✅ Starting Nexus exporter on :9103/metrics")
     start_http_server(9103)
     while True:
         fetch_blobstores()
-        fetch_repositories()
+        fetch_status_check()
+        # fetch_repositories()  # Optional: uncomment if needed
         time.sleep(300)  # every 5 minutes
 
 if __name__ == "__main__":
