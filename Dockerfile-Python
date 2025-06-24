@@ -9,9 +9,10 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy exporter script
 COPY nexus_blobstore_exporter.py .
+COPY nexus_assets_exporter.py .
 
 # Expose Prometheus metrics port
 EXPOSE 9103
 
 # Run the exporter
-CMD ["python", "nexus_blobstore_exporter.py"]
+CMD ["python", "nexus_assets_exporter.py"]

@@ -4,10 +4,10 @@ import requests
 from prometheus_client import start_http_server, Gauge
 from datetime import datetime, timezone
 
-NEXUS_URL = os.getenv("NEXUS_URL", "https://repouat.maybank.co.id")
-NEXUS_USER = os.getenv("NEXUS_USER", "admin")
-NEXUS_PASS = os.getenv("NEXUS_PASS", "password")
-SCRAPE_INTERVAL = int(os.getenv("SCRAPE_INTERVAL", "300"))  # seconds
+NEXUS_URL = os.getenv("NEXUS_URL")
+NEXUS_USER = os.getenv("NEXUS_USER")
+NEXUS_PASS = os.getenv("NEXUS_PASS")
+SCRAPE_INTERVAL = int(os.getenv("SCRAPE_INTERVAL", "60"))  # seconds
 
 # Metrics
 repo_size = Gauge("nexus_repositories_size_bytes", "Total size of repository in bytes", ["repository"])
