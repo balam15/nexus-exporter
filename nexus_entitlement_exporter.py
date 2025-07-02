@@ -63,8 +63,8 @@ def collect_entitlement_metrics():
           f"P12: {p12_count} (latest: {p12_ts_str}) | Size: {total_size} bytes")
 
 if __name__ == "__main__":
-    start_http_server(9103)
-    print("Entitlement Exporter running at http://localhost:9103/metrics")
+    start_http_server(9102)
+    print("Entitlement Exporter running at http://localhost:9102/metrics")
 
     while True:
         collect_entitlement_metrics()

@@ -1,0 +1,17 @@
+FROM python:3.11-slim
+
+# Set working directory
+WORKDIR /app
+
+# Install required libraries
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copy exporter script
+COPY nexus_entitlement_exporter.py .
+
+# Expose Prometheus metrics port
+EXPOSE 9102
+
+# Run the exporter
+CMD ["python", "nexus_entitlement_exporter.py"]
